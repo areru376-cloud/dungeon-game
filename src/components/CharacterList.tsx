@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Character, Equipment } from '../types';
-import { computeCharacterStats } from '../gameEngine';
+import { computeCharacterStats, formatJapanesePower } from '../gameEngine';
 import { JOB_INFO } from '../constants';
 import { User, Shield, Sword, Sparkles, LogOut } from 'lucide-react';
 
@@ -9,7 +9,7 @@ interface CharacterListProps {
   inventory: Equipment[];
   gold: number;
   companyWideAtkBuffPct: number;
-  onLevelUp: (charId: string) => void;
+  onLevelUp: (charId: string, levelsToRaise: number) => void;
   onDismiss: (charId: string) => void;
   onOpenEquipSelector: (character: Character, type: 'weapon' | 'armor') => void;
 }
@@ -24,6 +24,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
   onOpenEquipSelector,
 }) => {
   const [confirmDismissId, setConfirmDismissId] = useState<string | null>(null);
+  const [selectedLevels, setSelectedLevels] = useState<Record<string, number>>({});
 
   return (
     <div className="space-y-4 text-[#4A2E1B] font-dq">
@@ -50,8 +51,39 @@ export const CharacterList: React.FC<CharacterListProps> = ({
           {characters.map((char) => {
             // Compute current stats taking equipments, passive, jobs into account
             const stats = computeCharacterStats(char, inventory, companyWideAtkBuffPct);
-            const levelUpCost = char.level * 160 + 120;
-            const canLevelUp = gold >= levelUpCost && char.status === 'idle';
+            
+            // Calculate max affordable levels and cost
+            const getMaxAffordable = (charLvl: number, currentGold: number) => {
+              let tempGold = currentGold;
+              let tempL = charLvl;
+              let count = 0;
+              while (true) {
+                const cost = tempL * 160 + 120;
+                if (tempGold >= cost) {
+                  tempGold -= cost;
+                  count += 1;
+                  tempL += 1;
+                } else {
+                  break;
+                }
+              }
+              return count;
+            };
+
+            const getCostForLevels = (charLvl: number, lvlCount: number) => {
+              let tempL = charLvl;
+              let totalCost = 0;
+              for (let i = 0; i < lvlCount; i++) {
+                totalCost += tempL * 160 + 120;
+                tempL += 1;
+              }
+              return totalCost;
+            };
+
+            const maxAffordable = getMaxAffordable(char.level, gold);
+            const currentChosenLevels = Math.max(1, Math.min(selectedLevels[char.id] || 1, maxAffordable || 1));
+            const isAffordable = maxAffordable > 0;
+            const totalLevelUpCost = getCostForLevels(char.level, isAffordable ? currentChosenLevels : 1);
 
             return (
               <div
@@ -61,7 +93,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                 {/* Status Overlay Badge */}
                 <div className="absolute right-3 top-3 flex items-center gap-1.5 select-none">
                   <span
-                    className={`text-[9px] uppercase font-black px-2 py-0.5 rounded border-2 ${
+                    className={`text-[9.5px] uppercase font-black px-2 py-0.5 rounded border-2 ${
                       char.status === 'dispatched'
                         ? 'bg-amber-100 text-amber-900 border-amber-300'
                         : 'bg-emerald-100 text-emerald-900 border-emerald-300'
@@ -94,7 +126,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                     </div>
 
                     <div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 animate-fade-in">
                         <span className="text-[10px] border border-[#4A2E1B] bg-[#F5EFE6] px-2 py-0.5 rounded font-black text-[#A33B20]">
                           Lv.{char.level}
                         </span>
@@ -108,8 +140,21 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                     </div>
                   </div>
 
+                  {/* Combat Power (戦力) Display with Japanese format characters */}
+                  <div className="mt-3.5 bg-[#FAF3E0] border border-amber-800/35 px-2.5 py-1.5 rounded text-xs flex items-center justify-between select-none">
+                    <span className="text-[10px] text-amber-900 font-extrabold uppercase flex items-center gap-1">
+                      ✊ しゃいんギルド総戦力 [POWER]
+                    </span>
+                    <span className="font-black text-[#A33B20] font-mono text-xs flex items-center gap-1">
+                      {stats.totalPower}
+                      <span className="text-[11px] font-dq font-black text-[#A33B20] bg-orange-100/60 px-1 rounded border border-orange-200 ml-1">
+                        {formatJapanesePower(stats.totalPower)}
+                      </span>
+                    </span>
+                  </div>
+
                   {/* Core Combined Stats Block */}
-                  <div className="mt-4 grid grid-cols-3 gap-2 bg-[#F5EFE6] border-2 border-[#4A2E1B] p-2.5 rounded text-center select-none">
+                  <div className="mt-3.5 grid grid-cols-3 gap-2 bg-[#F5EFE6] border-2 border-[#4A2E1B] p-2.5 rounded text-center select-none">
                     <div>
                       <span className="text-[9px] text-[#8C7A65] font-extrabold uppercase block">攻撃力 Atk</span>
                       <span className="text-xs font-black text-[#A33B20] flex items-center justify-center gap-0.5">
@@ -143,7 +188,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                         onClick={() => onOpenEquipSelector(char, 'weapon')}
                         className={`text-left p-2 border-2 rounded transition-colors text-xs flex items-center justify-between gap-1.5 ${
                           char.status === 'dispatched'
-                            ? 'bg-[#F5EFE6] text-gray-400 cursor-not-allowed border-[#4A2E1B]/30'
+                            ? 'bg-[#F5EFE6] text-gray-400 cursor-not-allowed border-[#4A2E1B]/30 pt-1 pb-1'
                             : 'bg-[#FAF6EE] hover:bg-[#F5EFE6] border-[#4A2E1B] cursor-pointer'
                         }`}
                       >
@@ -163,7 +208,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                         onClick={() => onOpenEquipSelector(char, 'armor')}
                         className={`text-left p-2 border-2 rounded transition-colors text-xs flex items-center justify-between gap-1.5 ${
                           char.status === 'dispatched'
-                            ? 'bg-[#F5EFE6] text-gray-400 cursor-not-allowed border-[#4A2E1B]/30'
+                            ? 'bg-[#F5EFE6] text-gray-400 cursor-not-allowed border-[#4A2E1B]/30 pt-1 pb-1'
                             : 'bg-[#FAF6EE] hover:bg-[#F5EFE6] border-[#4A2E1B] cursor-pointer'
                         }`}
                       >
@@ -179,64 +224,124 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                   </div>
                 </div>
 
-                {/* Level Up & Dismiss Footer */}
-                <div className="mt-5 pt-3 border-t border-[#4A2E1B]/20 flex items-center justify-between gap-2 shrink-0">
+                {/* Level Up (Slider) Panel / Status Display */}
+                <div className="mt-4 pt-4 border-t border-[#4A2E1B]/15">
+                  {char.status === 'dispatched' ? (
+                    <div className="text-center py-2.5 bg-[#FAF6EE] border border-dashed border-[#4A2E1B]/25 rounded text-[10px] text-[#8C7A65] font-bold">
+                      💼 単身でダンジョンへ派遣中のため、現在は訓練を行えません。
+                    </div>
+                  ) : !isAffordable ? (
+                    <div className="flex flex-col gap-2">
+                        <div className="text-center py-2 bg-amber-50 rounded border border-dashed border-amber-300 text-[10px] text-amber-800 font-bold leading-normal">
+                          🪙 ゴールドが不足しています（次のレベルアップ訓練に {char.level * 160 + 120}G 必要）
+                        </div>
+                        <button
+                          disabled
+                          className="w-full text-center py-2 rounded text-xs bg-stone-200 border-b-4 border-stone-300 text-stone-400 cursor-not-allowed font-black flex items-center justify-center gap-1.5"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                          訓練強化 (G不足)
+                        </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 bg-[#FAF3E0]/60 p-2.5 rounded border border-[#4A2E1B]/20">
+                      <div className="flex justify-between items-center text-[10.5px]">
+                        <span className="font-extrabold text-[#A33B20] flex items-center gap-1">▶ 訓練レベル数をえらぶ</span>
+                        <span className="font-mono bg-[#FAF6EE] border border-[#4A2E1B]/30 px-2 py-0.2 rounded font-black text-[#A33B20]">
+                          +{currentChosenLevels} Lvl
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9.5px] text-[#8C7A65] font-mono">1</span>
+                        <input
+                          type="range"
+                          min="1"
+                          max={maxAffordable}
+                          value={currentChosenLevels}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            setSelectedLevels((prev) => ({ ...prev, [char.id]: val }));
+                          }}
+                          className="flex-1 h-2 bg-[#4A2E1B]/15 rounded-lg appearance-none cursor-pointer accent-[#A33B20]"
+                        />
+                        <span className="text-[9.5px] text-amber-800 font-extrabold font-mono">最大+{maxAffordable}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center bg-[#FAF6EE] border border-dashed border-[#4A2E1B]/30 px-2.5 py-1.5 rounded text-[10.5px]">
+                        <div>
+                          <span className="text-[8px] text-[#8C7A65] block">訓練目標</span>
+                          <span className="font-black text-[#4A2E1B] font-mono">
+                            Lv.{char.level} ➔ <strong className="text-[#A33B20] text-sm font-black">Lv.{char.level + currentChosenLevels}</strong>
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[8px] text-[#8C7A65] block">消費予算</span>
+                          <span className="font-black text-amber-800 font-mono text-sm leading-none flex items-center gap-0.5 justify-end">
+                            🪙 {totalLevelUpCost} G
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        id={`levelup-btn-${char.id}`}
+                        onClick={() => {
+                          onLevelUp(char.id, currentChosenLevels);
+                          // Set selection level back to 1
+                          setSelectedLevels((prev) => ({ ...prev, [char.id]: 1 }));
+                        }}
+                        className="w-full text-center py-2 px-3 rounded text-xs bg-[#203D54] border-b-4 border-[#132533] text-white hover:bg-[#132533] cursor-pointer font-black flex items-center justify-center gap-1.5 active:translate-y-[2px] active:border-b-0 transition-all shadow-sm"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                        この内容で 訓練強化（+{currentChosenLevels}Lv）
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dismiss Footer Portion */}
+                <div className="mt-3.5 pt-3 border-t border-[#4A2E1B]/15 flex items-center justify-between shrink-0">
                   {/* Dismiss option with inline secure confirmation */}
                   {confirmDismissId === char.id ? (
-                    <div className="flex items-center gap-1.5 p-1 bg-red-100 border border-[#A33B20] rounded animate-pulse">
-                      <span className="text-[8.5px] font-black text-[#A33B20] leading-none">解雇？ (逆戻G+300)</span>
-                      <button
-                        id={`confirm-dismiss-yes-${char.id}`}
-                        onClick={() => {
-                          onDismiss(char.id);
-                          setConfirmDismissId(null);
-                        }}
-                        className="px-1.5 py-0.5 text-[8.5px] bg-[#A33B20] text-white rounded font-extrabold cursor-pointer border border-[#4A2E1B]"
-                      >
-                        はい
-                      </button>
-                      <button
-                        id={`confirm-dismiss-no-${char.id}`}
-                        onClick={() => setConfirmDismissId(null)}
-                        className="px-1.5 py-0.5 text-[8.5px] bg-stone-500 text-white rounded font-extrabold cursor-pointer border border-[#4A2E1B]"
-                      >
-                        いいえ
-                      </button>
+                    <div className="flex items-center gap-1.5 p-1 bg-red-100 border border-[#A33B20] rounded animate-pulse w-full justify-between">
+                      <span className="text-[8.5px] font-black text-[#A33B20] leading-none">本当に解雇しますか？ (退職金 G+300)</span>
+                      <div className="flex gap-1 shrink-0">
+                        <button
+                          id={`confirm-dismiss-yes-${char.id}`}
+                          onClick={() => {
+                            onDismiss(char.id);
+                            setConfirmDismissId(null);
+                          }}
+                          className="px-1.5 py-0.5 text-[8.5px] bg-[#A33B20] text-white rounded font-extrabold cursor-pointer border border-[#4A2E1B]"
+                        >
+                          はい
+                        </button>
+                        <button
+                          id={`confirm-dismiss-no-${char.id}`}
+                          onClick={() => setConfirmDismissId(null)}
+                          className="px-1.5 py-0.5 text-[8.5px] bg-stone-500 text-white rounded font-extrabold cursor-pointer border border-[#4A2E1B]"
+                        >
+                          いいえ
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <button
                       id={`dismiss-btn-${char.id}`}
                       disabled={char.status === 'dispatched'}
                       onClick={() => setConfirmDismissId(char.id)}
-                      className={`p-1.5 rounded border-2 border-[#4A2E1B]/30 transition-all flex items-center justify-center ${
+                      className={`p-1 px-2.5 py-1.5 rounded border border-[#4A2E1B]/35 transition-all flex items-center justify-center ${
                         char.status === 'dispatched'
-                          ? 'text-gray-405 cursor-not-allowed opacity-40'
+                          ? 'text-gray-400 cursor-not-allowed opacity-40'
                           : 'text-[#A33B20] bg-red-50 hover:bg-red-100 cursor-pointer'
                       }`}
                       title="この冒険者をギルド引退させ、退職給与300Gを手配します。"
                     >
-                      <LogOut className="w-3.5 h-3.5 shrink-0 animate-pulse text-[#A33B20]" />
-                      <span className="text-[9px] font-black ml-1 leading-none">おわかれ</span>
+                      <LogOut className="w-3.5 h-3.5 shrink-0 text-[#A33B20] mr-1" />
+                      <span className="text-[9px] font-black leading-none">社員おわかれ (解雇)</span>
                     </button>
                   )}
-
-                  {/* Level up option */}
-                  <button
-                    id={`levelup-btn-${char.id}`}
-                    onClick={() => onLevelUp(char.id)}
-                    disabled={!canLevelUp}
-                    className={`px-3 py-1.5 rounded text-[11px] font-black shadow-sm border-b-4 active:translate-y-[2px] active:border-b-0 transition-all flex items-center gap-1 ${
-                      canLevelUp
-                        ? 'bg-[#203D54] border-[#132533] text-white hover:bg-[#132533] cursor-pointer'
-                        : 'bg-stone-200 border-stone-300 text-stone-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                    訓練強化
-                    <span className="font-mono text-[9px] ml-1 bg-black/10 px-1.5 py-0.5 rounded select-none">
-                      {levelUpCost}G
-                    </span>
-                  </button>
                 </div>
 
               </div>

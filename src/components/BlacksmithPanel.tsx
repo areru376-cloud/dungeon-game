@@ -12,6 +12,7 @@ interface BlacksmithPanelProps {
   inventory: Equipment[];
   onCraft: (recipeId: string, itemType: 'weapon' | 'armor') => Equipment | null;
   onDismantle: (itemId: string) => { goldReward: number; ironReward: number; magicReward: number; dragonReward: number } | null;
+  onBulkDismantleIds?: (itemIds: string[]) => void;
   officeGymLevel: number;
   forgeUpgradeLevel: number;
   dispatchCenterLevel: number;
@@ -35,6 +36,7 @@ export const BlacksmithPanel: React.FC<BlacksmithPanelProps> = ({
   inventory,
   onCraft,
   onDismantle,
+  onBulkDismantleIds,
   officeGymLevel,
   forgeUpgradeLevel,
   dispatchCenterLevel,
@@ -95,6 +97,24 @@ export const BlacksmithPanel: React.FC<BlacksmithPanelProps> = ({
     if (lockedItemIds[item.id]) return;
 
     onDismantle(item.id);
+  };
+
+  // Bulk / batch dismantle lists counts
+  const commonCount = inventory.filter(i => i.rarity === 'common' && !i.equippedToCharacterId && !lockedItemIds[i.id]).length;
+  const rareCount = inventory.filter(i => i.rarity === 'rare' && !i.equippedToCharacterId && !lockedItemIds[i.id]).length;
+  const epicCount = inventory.filter(i => i.rarity === 'epic' && !i.equippedToCharacterId && !lockedItemIds[i.id]).length;
+  const legendaryCount = inventory.filter(i => i.rarity === 'legendary' && !i.equippedToCharacterId && !lockedItemIds[i.id]).length;
+
+  const handleBulkDismantleByRarity = (rarity: 'common' | 'rare' | 'epic' | 'legendary') => {
+    let targets: Equipment[] = [];
+    if (rarity === 'common') targets = inventory.filter(i => i.rarity === 'common' && !i.equippedToCharacterId && !lockedItemIds[i.id]);
+    else if (rarity === 'rare') targets = inventory.filter(i => i.rarity === 'rare' && !i.equippedToCharacterId && !lockedItemIds[i.id]);
+    else if (rarity === 'epic') targets = inventory.filter(i => i.rarity === 'epic' && !i.equippedToCharacterId && !lockedItemIds[i.id]);
+    else if (rarity === 'legendary') targets = inventory.filter(i => i.rarity === 'legendary' && !i.equippedToCharacterId && !lockedItemIds[i.id]);
+
+    if (targets.length === 0) return;
+    const targetIds = targets.map((t) => t.id);
+    onBulkDismantleIds?.(targetIds);
   };
 
   const getRarityTextStyle = (rarity: string) => {
@@ -650,6 +670,80 @@ export const BlacksmithPanel: React.FC<BlacksmithPanelProps> = ({
             <p className="text-[11px] text-[#5C4033] mb-3 leading-relaxed">
               不要になった装備品を安全に分解し、おカネと基礎素材に還元します。(※待機中の装備のみ分解可能)
             </p>
+
+            {/* Bulk Dismantle Section */}
+            <div className="mb-3.5 bg-[#FAF3E0] border-2 border-[#4A2E1B] p-2.5 rounded flex flex-col gap-1.5 shadow-inner text-xs">
+              <span className="text-[10px] font-black text-[#A33B20] block">♻️ レアリティ別 一括分解 (未装備&未ロックのみ)</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+                <button
+                  type="button"
+                  disabled={commonCount === 0}
+                  onClick={() => {
+                    if (window.confirm(`装備およびロックされていない【コモン】装備を ${commonCount}個、すべて分解しますか？`)) {
+                      handleBulkDismantleByRarity('common');
+                    }
+                  }}
+                  className={`px-1 py-1.5 text-[9px] font-black rounded border cursor-pointer select-none text-center transition-all ${
+                    commonCount > 0
+                      ? 'bg-stone-200 hover:bg-stone-300 text-stone-900 border-stone-400 active:translate-y-[0.5px]'
+                      : 'bg-stone-200/40 text-stone-400/50 border-stone-200/30 cursor-not-allowed'
+                  }`}
+                >
+                  コモン ({commonCount})
+                </button>
+
+                <button
+                  type="button"
+                  disabled={rareCount === 0}
+                  onClick={() => {
+                    if (window.confirm(`装備およびロックされていない【レア】装備を ${rareCount}個、すべて分解しますか？`)) {
+                      handleBulkDismantleByRarity('rare');
+                    }
+                  }}
+                  className={`px-1 py-1.5 text-[9px] font-black rounded border cursor-pointer select-none text-center transition-all ${
+                    rareCount > 0
+                      ? 'bg-indigo-100 hover:bg-indigo-200 text-indigo-900 border-indigo-400 active:translate-y-[0.5px]'
+                      : 'bg-indigo-100/30 text-indigo-300/50 border-indigo-100/20 cursor-not-allowed'
+                  }`}
+                >
+                  レア ({rareCount})
+                </button>
+
+                <button
+                  type="button"
+                  disabled={epicCount === 0}
+                  onClick={() => {
+                    if (window.confirm(`装備およびロックされていない【エピック】装備を ${epicCount}個、すべて分解しますか？\n(高レアリティにつき十分ご注意ください)`)) {
+                      handleBulkDismantleByRarity('epic');
+                    }
+                  }}
+                  className={`px-1 py-1.5 text-[9px] font-black rounded border cursor-pointer select-none text-center transition-all ${
+                    epicCount > 0
+                      ? 'bg-purple-100 hover:bg-purple-200 text-purple-900 border-purple-400 active:translate-y-[0.5px]'
+                      : 'bg-purple-100/30 text-purple-300/50 border-purple-100/20 cursor-not-allowed'
+                  }`}
+                >
+                  エピック ({epicCount})
+                </button>
+
+                <button
+                  type="button"
+                  disabled={legendaryCount === 0}
+                  onClick={() => {
+                    if (window.confirm(`装備およびロックされていない【レジェンダリー】装備を ${legendaryCount}個、すべて分解しますか？\n(極めて希少な最高レアにつき最深の注意を！)`)) {
+                      handleBulkDismantleByRarity('legendary');
+                    }
+                  }}
+                  className={`px-1 py-1.5 text-[9px] font-black rounded border cursor-pointer select-none text-center transition-all ${
+                    legendaryCount > 0
+                      ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-400 active:translate-y-[0.5px]'
+                      : 'bg-amber-100/30 text-amber-300/50 border-amber-100/20 cursor-not-allowed'
+                  }`}
+                >
+                  伝説 ({legendaryCount})
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2 overflow-y-auto pr-1 flex-1 max-h-[50vh] min-h-[220px]">

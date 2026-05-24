@@ -10,6 +10,26 @@ import {
 // Utility for generating unique IDs
 export const generateId = () => Math.random().toString(36).substr(2, 9);
 
+// Format combat power with Japanese currency/number notation (e.g. 10000 -> 1万, 25000 -> 2万5千)
+export const formatJapanesePower = (num: number): string => {
+  if (num < 1000) return num.toString();
+  const w = Math.floor(num / 10000);
+  const s = Math.floor((num % 10000) / 1000);
+  const r = num % 1000;
+  
+  let result = '';
+  if (w > 0) {
+    result += `${w}万`;
+  }
+  if (s > 0) {
+    result += `${s}千`;
+  }
+  if (r > 0) {
+    result += r.toString();
+  }
+  return result;
+};
+
 // Get random item from list
 const sample = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
@@ -435,7 +455,7 @@ export const calculateDispatchRewards = (
   if (dungeon.isInfinite && character.dispatchState) {
     // If infinite abyss, scales gold aggressively using floor
     // e.g. base = 500 * (1.3^floor)
-    const currentFloor = Math.max(1, Math.round(targetRecPower / 1200)); // derived floor representation
+    const currentFloor = Math.max(1, Math.round((targetRecPower - 4000) / 8000)); // derived floor representation
     baseGold = Math.round(400 * Math.pow(1.35, currentFloor));
   }
 
@@ -449,7 +469,7 @@ export const calculateDispatchRewards = (
   let baseDragon = dungeon.dragonReward;
 
   if (dungeon.isInfinite && character.dispatchState) {
-    const currentFloor = Math.max(1, Math.round(targetRecPower / 1200));
+    const currentFloor = Math.max(1, Math.round((targetRecPower - 4000) / 8000));
     baseIron = Math.round(5 + currentFloor * 1.5);
     baseMagic = currentFloor >= 3 ? Math.round(2 + currentFloor * 0.7) : 0;
     baseDragon = currentFloor >= 8 ? Math.round(1 + currentFloor * 0.15) : 0;
@@ -474,7 +494,7 @@ export const calculateDispatchRewards = (
     // Deep Abyss floors guarantee better rarity rolls!
     let forcedRarity: RarityType | undefined;
     if (dungeon.isInfinite && character.dispatchState) {
-      const currentFloor = Math.max(1, Math.round(targetRecPower / 1200));
+      const currentFloor = Math.max(1, Math.round((targetRecPower - 4000) / 8000));
       if (currentFloor >= 20) {
         // High floors, mostly Epic/Legendary
         const roll = Math.random();

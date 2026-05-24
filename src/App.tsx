@@ -469,33 +469,39 @@ export default function App() {
   };
 
   // Level Up Staff Action (Training)
-  const handleLevelUpCharacter = (charId: string) => {
+  const handleLevelUpCharacter = (charId: string, levelsToRaise: number = 1) => {
     const character = gameState.characters.find((c) => c.id === charId);
     if (!character || character.status !== 'idle') return;
 
-    const levelUpCost = character.level * 160 + 120;
-    if (gameState.gold < levelUpCost) return;
+    let totalCost = 0;
+    let tempLevel = character.level;
+    for (let i = 0; i < levelsToRaise; i++) {
+      totalCost += tempLevel * 160 + 120;
+      tempLevel += 1;
+    }
+
+    if (gameState.gold < totalCost) return;
 
     setGameState((prev) => {
       const updatedChars = prev.characters.map((char) => {
         if (char.id === charId) {
           return {
             ...char,
-            level: char.level + 1,
+            level: char.level + levelsToRaise,
           };
         }
         return char;
       });
 
       const stamp = new Date().toLocaleTimeString();
-      const nextGold = prev.gold - levelUpCost;
+      const nextGold = prev.gold - totalCost;
 
       const newLogs = [
         {
           id: `log_lvl_${charId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
           timestamp: stamp,
-          text: `💪 従業員訓練: 「${character.name}」がスキル訓練課程を修了し、レベルが ${character.level + 1} に向上しました！物理攻撃力が増加します。`,
-          type: 'success',
+          text: `💪 従業員訓練: 「${character.name}」がスキル訓練課程を修了し、レベルが ${character.level + levelsToRaise} に向上しました（+${levelsToRaise}Lv、消費:${totalCost}G）！攻撃力・防御力が向上します。`,
+          type: 'success' as const,
         },
         ...prev.logs,
       ];
@@ -632,6 +638,72 @@ export default function App() {
     });
 
     return newItem;
+  };
+
+  // Bulk Dismantle Equipment Action
+  const handleBulkDismantleIds = (itemIds: string[]) => {
+    setGameState((prev) => {
+      const itemsToDismantle = prev.inventory.filter(
+        (i) => itemIds.includes(i.id) && !i.equippedToCharacterId
+      );
+      if (itemsToDismantle.length === 0) return prev;
+
+      let totalGold = 0;
+      let totalIron = 0;
+      let totalMagic = 0;
+      let totalDragon = 0;
+
+      itemsToDismantle.forEach((item) => {
+        switch (item.rarity) {
+          case 'common':
+            totalGold += 80;
+            totalIron += 3;
+            break;
+          case 'rare':
+            totalGold += 350;
+            totalIron += 8;
+            totalMagic += 1;
+            break;
+          case 'epic':
+            totalGold += 1800;
+            totalIron += 20;
+            totalMagic += 6;
+            totalDragon += 1;
+            break;
+          case 'legendary':
+            totalGold += 5000;
+            totalIron += 45;
+            totalMagic += 15;
+            totalDragon += 3;
+            break;
+        }
+      });
+
+      const updatedInventory = prev.inventory.filter(
+        (item) => !itemIds.includes(item.id)
+      );
+
+      const stamp = new Date().toLocaleTimeString();
+      const newLogs = [
+        {
+          id: `log_bulk_dis_${Date.now()}`,
+          timestamp: stamp,
+          text: `♻️ 一括武具分解: 被選択武具をおおどうぐそうこより ${itemsToDismantle.length}個 一括解体しました。 （獲得: +${totalGold}G、+${totalIron}鉄、+${totalMagic}結晶、+${totalDragon}逆鱗）`,
+          type: 'info' as const,
+        },
+        ...prev.logs,
+      ];
+
+      return {
+        ...prev,
+        gold: prev.gold + totalGold,
+        ironOre: prev.ironOre + totalIron,
+        magicStone: prev.magicStone + totalMagic,
+        dragonScale: prev.dragonScale + totalDragon,
+        inventory: updatedInventory,
+        logs: newLogs,
+      };
+    });
   };
 
   // Dismantle Equipment Action
@@ -1336,6 +1408,7 @@ export default function App() {
             inventory={gameState.inventory}
             onCraft={handleCraftItem}
             onDismantle={handleDismantleItem}
+            onBulkDismantleIds={handleBulkDismantleIds}
             officeGymLevel={gameState.officeGymLevel || 0}
             forgeUpgradeLevel={gameState.forgeUpgradeLevel || 0}
             dispatchCenterLevel={gameState.dispatchCenterLevel || 0}
