@@ -79,10 +79,10 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                       <img
                         src={
                           char.job === 'warrior'
-                            ? '/src/assets/images/warrior_pixel_1779353477274.png'
+                            ? '/assets/images/warrior_pixel_1779353477274.png'
                             : char.job === 'mage'
-                            ? '/src/assets/images/mage_pixel_1779353496698.png'
-                            : '/src/assets/images/thief_pixel_1779353510388.png'
+                            ? '/assets/images/mage_pixel_1779353496698.png'
+                            : '/assets/images/thief_pixel_1779353510388.png'
                         }
                         alt={char.job}
                         className="w-full h-full object-cover scale-105"

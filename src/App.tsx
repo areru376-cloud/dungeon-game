@@ -1101,7 +1101,7 @@ export default function App() {
             {/* DQ Style Graphic Title Banner */}
             <div className="relative overflow-hidden rounded-lg border-[4px] border-[#4A2E1B] shadow-[4px_4px_0px_#2E1B10]">
               <img
-                src="/src/assets/images/dq_title_banner_1779353462114.png"
+                src="/assets/images/dq_title_banner_1779353462114.png"
                 alt="無限ダンジョン派遣ギルド"
                 className="w-full h-32 md:h-48 object-cover object-bottom filter brightness-95"
                 referrerPolicy="no-referrer"

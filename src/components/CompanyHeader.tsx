@@ -39,7 +39,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-[#ECD8B6] border-2 border-[#4A2E1B] rounded flex items-center justify-center overflow-hidden shrink-0 select-none shadow-[inset_0_0_4px_rgba(0,0,0,0.3)]">
               <img
-                src="/src/assets/images/warrior_pixel_1779353477274.png"
+                src="/assets/images/warrior_pixel_1779353477274.png"
                 alt="Mascot"
                 className="w-full h-full object-cover scale-110"
                 referrerPolicy="no-referrer"
