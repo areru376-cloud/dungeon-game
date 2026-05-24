@@ -9,7 +9,7 @@ interface DungeonPanelProps {
   inventory: Equipment[];
   deepestAbyssFloor: number;
   companyWideAtkBuffPct: number;
-  onDispatch: (charId: string, dungeonId: string, recommendedAtk: number, durationMs: number, autoLoop?: boolean) => void;
+  onDispatch: (charId: string, dungeonId: string, recommendedAtk: number, durationMs: number, autoLoop?: boolean, autoAbyss?: boolean) => void;
   tutorialStep?: number;
   showTutorial?: boolean;
 }
@@ -27,6 +27,7 @@ export const DungeonPanel: React.FC<DungeonPanelProps> = ({
   const [selectedCharId, setSelectedCharId] = useState<string>('');
   const [abyssFloor, setAbyssFloor] = useState<number>(1);
   const [autoLoop, setAutoLoop] = useState<boolean>(false);
+  const [autoAbyss, setAutoAbyss] = useState<boolean>(false);
 
   // 奈落の階層を選んだときは、デフォルトでその時挑戦できる1番高い階を表示する
   React.useEffect(() => {
@@ -65,9 +66,10 @@ export const DungeonPanel: React.FC<DungeonPanelProps> = ({
     const recAtk = currentDungeon.recommendAtk;
     const activeStats = computeCharacterStats(chosenChar!, inventory, companyWideAtkBuffPct);
     const durationSec = getSimulatedDuration(currentDungeon.durationSec, activeStats);
-    onDispatch(selectedCharId, currentDungeon.id, recAtk, durationSec * 1000, autoLoop);
+    onDispatch(selectedCharId, currentDungeon.id, recAtk, durationSec * 1000, autoLoop, autoAbyss);
     setSelectedCharId('');
     setAutoLoop(false);
+    setAutoAbyss(false);
   };
 
   return (
@@ -104,6 +106,7 @@ export const DungeonPanel: React.FC<DungeonPanelProps> = ({
                     setSelectedDungeonId(d.id);
                     setSelectedCharId('');
                     setAutoLoop(false);
+                    setAutoAbyss(false);
                   }}
                   className={`border-[2.5px] rounded-lg p-3.5 text-left cursor-pointer transition-all relative overflow-hidden bg-[#FAF6EE] ${
                     isSelected
@@ -351,28 +354,66 @@ export const DungeonPanel: React.FC<DungeonPanelProps> = ({
                           )}
 
                           {/* Loop selection */}
-                          <div className="p-3 bg-white/70 border border-[#4A2E1B]/30 rounded-lg flex items-center justify-between gap-3 shadow-sm flex-wrap">
-                            <div className="flex items-center gap-2 flex-1">
-                              <span className="text-base select-none">🔄</span>
-                              <div className="flex-1 min-w-[150px]">
-                                <span className="text-[11px] font-black block text-[#A33B20]">自動周回をONにする [ AUTO REPEAT ]</span>
+                          <div className="space-y-2">
+                            <div className="p-3 bg-white/70 border border-[#4A2E1B]/30 rounded-lg flex items-center justify-between gap-3 shadow-sm flex-wrap">
+                              <div className="flex items-center gap-2 flex-1">
+                                <span className="text-base select-none">🔄</span>
+                                <div className="flex-1 min-w-[150px]">
+                                  <span className="text-[11px] font-black block text-[#4A2E1B]">同一階層を自動周回する [ AUTO REPEAT ]</span>
+                                </div>
                               </div>
+                              <button
+                                type="button"
+                                id="auto-loop-toggle"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAutoLoop(prev => {
+                                    const next = !prev;
+                                    if (next) setAutoAbyss(false);
+                                    return next;
+                                  });
+                                }}
+                                className={`px-3 py-1 text-[11px] font-black rounded border-2 transition-all cursor-pointer ${
+                                  autoLoop
+                                    ? 'bg-[#2E7D32] text-white border-[#1B5E20]'
+                                    : 'bg-[#FAF6EE] text-[#4A2E1B] border-[#4A2E1B]/40 hover:bg-stone-50'
+                                }`}
+                              >
+                                {autoLoop ? '自動周回：有効 🔄' : '無効'}
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              id="auto-loop-toggle"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setAutoLoop(prev => !prev);
-                              }}
-                              className={`px-3 py-1 text-[11px] font-black rounded border-2 transition-all cursor-pointer ${
-                                autoLoop
-                                  ? 'bg-[#2E7D32] text-white border-[#1B5E20]'
-                                  : 'bg-[#FAF6EE] text-[#4A2E1B] border-[#4A2E1B]/40 hover:bg-stone-50'
-                              }`}
-                            >
-                              {autoLoop ? '自動周回：有効 🔄' : '無効'}
-                            </button>
+
+                            {/* Abyss Auto Conquest (shown only for Infinite Dungeon) */}
+                            {currentDungeon.isInfinite && (
+                              <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-850/40 rounded-lg flex items-center justify-between gap-3 shadow-sm flex-wrap animate-fade-in">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <span className="text-base select-none">🧗</span>
+                                  <div className="flex-1 min-w-[150px]">
+                                    <span className="text-[11px] font-black block text-amber-900">自動進撃 (階層を進む) [ AUTO CLIMB ]</span>
+                                    <span className="text-[9px] text-amber-800/80 block leading-tight font-extrabold font-dq">クリア成功で自動的に次の階へ進撃し、全滅・敗北時に自動停止します</span>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  id="auto-abyss-toggle"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAutoAbyss(prev => {
+                                      const next = !prev;
+                                      if (next) setAutoLoop(false);
+                                      return next;
+                                    });
+                                  }}
+                                  className={`px-3 py-1 text-[11px] font-black rounded border-2 transition-all cursor-pointer ${
+                                    autoAbyss
+                                      ? 'bg-amber-700 text-white border-amber-950 shadow-sm'
+                                      : 'bg-[#FAF6EE] text-amber-900 border-[#4A2E1B]/40 hover:bg-stone-50'
+                                  }`}
+                                >
+                                  {autoAbyss ? '自動進撃：有効 🧗' : '無効'}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

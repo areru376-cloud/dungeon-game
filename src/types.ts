@@ -36,6 +36,7 @@ export interface Character {
     recommendedAtk: number;
     partyAtk: number; // Atk at timing of dispatch
     autoLoop?: boolean;
+    autoAbyss?: boolean;
   } | null;
 }
 

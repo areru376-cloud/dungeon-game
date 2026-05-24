@@ -199,13 +199,13 @@ export default function App() {
           .filter((ach) => ach.unlocked)
           .reduce((sum, ach) => sum + ach.buffValue, 0);
 
-        // 2. Map characters, checking if they have finished their dispatch and have autoLoop enabled
+        // 2. Map characters, checking if they have finished their dispatch and have autoLoop or autoAbyss enabled
         const updatedCharacters = prev.characters.map((char) => {
           if (
             char.status === 'dispatched' &&
             char.dispatchState &&
             Date.now() >= char.dispatchState.returnTime &&
-            char.dispatchState.autoLoop
+            (char.dispatchState.autoLoop || char.dispatchState.autoAbyss)
           ) {
             // Recalculate stats at dispatch complete
             const activeStats = computeCharacterStats(char, finalInventory, companyWideAtkBuffPct);
@@ -254,7 +254,7 @@ export default function App() {
 
               nextDispatchCount += 1;
 
-              // Compose autoLoop operational log records
+              // Compose autoLoop / autoAbyss operational log records
               const nowStamp = new Date().toLocaleTimeString();
               
               let rewardsSummary = `🪙+${results.goldEarned}G`;
@@ -266,14 +266,18 @@ export default function App() {
                 outcomeLogs.push({
                   id: `log_auto_result_${char.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
                   timestamp: nowStamp,
-                  text: `🔄 【自動周回報酬】「${char.name}」が「${selectedDungeonObj.name}」より無事帰還！ (報酬: ${rewardsSummary})`,
+                  text: char.dispatchState.autoAbyss 
+                    ? `🧗 【奈落自動制覇】「${char.name}」が「極限の奈落」の階層を見事にクリア！ (報酬: ${rewardsSummary})`
+                    : `🔄 【自動周回報酬】「${char.name}」が「${selectedDungeonObj.name}」より無事帰還！ (報酬: ${rewardsSummary})`,
                   type: 'success',
                 });
               } else {
                 outcomeLogs.push({
                   id: `log_auto_result_${char.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
                   timestamp: nowStamp,
-                  text: `💀 【自動周回全滅】「${char.name}」が「${selectedDungeonObj.name}」で全滅・敗北しました。(回収した部分報酬: ${rewardsSummary})`,
+                  text: char.dispatchState.autoAbyss 
+                    ? `💀 【奈落自動全滅】「${char.name}」が「極限の奈落」の階層で全滅・敗北しました。(回収した部分報酬: ${rewardsSummary})`
+                    : `💀 【自動周回全滅】「${char.name}」が「${selectedDungeonObj.name}」で全滅・敗北しました。(回収した部分報酬: ${rewardsSummary})`,
                   type: 'warn',
                 });
               }
@@ -282,7 +286,7 @@ export default function App() {
                 outcomeLogs.push({
                   id: `log_auto_loot_${char.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
                   timestamp: nowStamp,
-                  text: `🎁 【自動周回武具】「${char.name}」が「${results.foundItem.name} (${results.foundItem.rarity})」を発見しました！`,
+                  text: `🎁 【自動攻略武具】「${char.name}」が「${results.foundItem.name} (${results.foundItem.rarity})」を発見しました！`,
                   type: 'reward',
                 });
               }
@@ -291,31 +295,80 @@ export default function App() {
                 outcomeLogs.push({
                   id: `log_auto_ticket_${char.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
                   timestamp: nowStamp,
-                  text: `🎫 【自動周回幸運】「${char.name}」が人材紹介状を1枚発見しました！`,
+                  text: `🎫 【自動攻略幸運】「${char.name}」が人材紹介状を1枚発見しました！`,
                   type: 'reward',
                 });
               }
 
-              // Re-issue dispatch instantly with identical specifications
-              const refreshedNow = Date.now();
-              const refreshedReturnTime = refreshedNow + char.dispatchState.duration;
+              // Re-dispatch logic based on active mode
+              if (char.dispatchState.autoAbyss) {
+                const completedFloor = Math.max(1, Math.round((char.dispatchState.recommendedAtk - 4000) / 8000));
+                
+                if (results.success) {
+                  // Climb to next floor!
+                  const nextFloor = completedFloor + 1;
+                  const nextRecommendAtk = 4000 + nextFloor * 8000;
+                  const nextDurationSec = 10 + Math.round(nextFloor * 1.5);
+                  const reductionMultiplier = 1 - activeStats.timeReductionPct / 100;
+                  const nextDurationMs = Math.max(2, Math.round(nextDurationSec * reductionMultiplier)) * 1000;
+                  const refreshedNow = Date.now();
+                  const refreshedReturnTime = refreshedNow + nextDurationMs;
 
-              outcomeLogs.push({
-                id: `log_auto_relaunch_${char.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-                timestamp: nowStamp,
-                text: `🚀 【自動周回出撃】「${char.name}」は連続周回指示に基づき「${selectedDungeonObj.name}」へ再出撃しました。(帰還時刻: ${new Date(refreshedReturnTime).toLocaleTimeString()})`,
-                type: 'info',
-              });
+                  outcomeLogs.push({
+                    id: `log_abyss_advance_${char.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                    timestamp: nowStamp,
+                    text: `🧗 【奈落自動進撃】「${char.name}」が 第 ${completedFloor} 階層を突破！ 自動進撃により次の「第 ${nextFloor} 階層」（推奨戦力: ${nextRecommendAtk}）に向けて連続出撃しました！(完了まで: ${Math.round(nextDurationMs / 1000)}秒)`,
+                    type: 'info',
+                  });
 
-              return {
-                ...char,
-                status: 'dispatched' as const,
-                dispatchState: {
-                  ...char.dispatchState,
-                  startTime: refreshedNow,
-                  returnTime: refreshedReturnTime,
-                },
-              };
+                  return {
+                    ...char,
+                    status: 'dispatched' as const,
+                    dispatchState: {
+                      ...char.dispatchState,
+                      startTime: refreshedNow,
+                      duration: nextDurationMs,
+                      returnTime: refreshedReturnTime,
+                      recommendedAtk: nextRecommendAtk,
+                    },
+                  };
+                } else {
+                  // Defeated on auto climb: bring back to guild as idle and stop autoAbyss climb
+                  outcomeLogs.push({
+                    id: `log_abyss_fail_${char.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                    timestamp: nowStamp,
+                    text: `💀 【奈落進撃ストップ】「${char.name}」が 第 ${completedFloor} 階層で全滅したためオート攻略を自動停止し、オフィスに帰還しました。`,
+                    type: 'warn',
+                  });
+
+                  return {
+                    ...char,
+                    status: 'idle' as const,
+                    dispatchState: null,
+                  };
+                }
+              } else {
+                // Regular Auto Loop behavior: Re-issue dispatch instantly with identical specifications
+                const refreshedNow = Date.now();
+                const refreshedReturnTime = refreshedNow + char.dispatchState.duration;
+
+                outcomeLogs.push({
+                  id: `log_auto_relaunch_${char.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                  timestamp: nowStamp,
+                  text: `🚀 【自動周回出撃】「${char.name}」は連続周回指示に基づき「${selectedDungeonObj.name}」へ再出撃しました。(帰還時刻: ${new Date(refreshedReturnTime).toLocaleTimeString()})`,
+                  type: 'info',
+                });
+
+                return {
+                  ...char,
+                  status: 'dispatched' as const,
+                  dispatchState: {
+                    ...char.dispatchState,
+                    startTime: refreshedNow,
+                    returnTime: refreshedReturnTime,
+                  },
+                };
+              }
             }
           }
           return char;
@@ -869,7 +922,8 @@ export default function App() {
     dungeonId: string,
     recommendedAtk: number,
     durationMs: number,
-    autoLoop: boolean = false
+    autoLoop: boolean = false,
+    autoAbyss: boolean = false
   ) => {
     const now = Date.now();
     const returnTime = now + durationMs;
@@ -888,6 +942,7 @@ export default function App() {
               recommendedAtk,
               partyAtk: 0, // setup
               autoLoop,
+              autoAbyss,
             },
           };
         }
@@ -946,6 +1001,45 @@ export default function App() {
               dispatchState: {
                 ...char.dispatchState,
                 autoLoop: nextVal,
+                autoAbyss: nextVal ? false : char.dispatchState.autoAbyss, // Mutually exclusive
+              },
+            };
+          }
+        }
+        return char;
+      });
+
+      return {
+        ...prev,
+        characters: updatedChars,
+        logs: logPayload ? [logPayload, ...prev.logs] : prev.logs,
+      };
+    });
+  };
+
+  // Toggle autoAbyss state on active dispatch or idle character
+  const handleToggleAutoAbyss = (charId: string) => {
+    setGameState((prev) => {
+      let logPayload: any = null;
+      const updatedChars = prev.characters.map((char) => {
+        if (char.id === charId) {
+          if (char.dispatchState) {
+            const nextVal = !char.dispatchState.autoAbyss;
+            
+            // Log the change
+            logPayload = {
+              id: `log_autoabyss_toggle_${charId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              timestamp: new Date().toLocaleTimeString(),
+              text: `🧗 設定更新: 「${char.name}」の極限の奈落自動進撃モードを「${nextVal ? '有効 (ON)' : '無効 (OFF)'}」に切り替えました。`,
+              type: 'info',
+            };
+
+            return {
+              ...char,
+              dispatchState: {
+                ...char.dispatchState,
+                autoAbyss: nextVal,
+                autoLoop: nextVal ? false : char.dispatchState.autoLoop, // Mutually exclusive
               },
             };
           }
@@ -1242,6 +1336,22 @@ export default function App() {
                                   >
                                     🔄 周回: {char.dispatchState?.autoLoop ? '有効 (ON)' : '手動 (OFF)'}
                                   </button>
+
+                                  {/* Dynamic Auto Abyss Toggle Pill */}
+                                  {char.dispatchState?.dungeonId.startsWith('dungeon_infinite') && (
+                                    <button
+                                      id={`toggle-autoabyss-pill-${char.id}`}
+                                      type="button"
+                                      onClick={() => handleToggleAutoAbyss(char.id)}
+                                      className={`text-[9.5px] font-black px-2 py-0.5 rounded border-2 transition-all cursor-pointer flex items-center gap-1 select-none ${
+                                        char.dispatchState?.autoAbyss
+                                          ? 'bg-amber-600 text-white border-amber-955 shadow-[1px_1px_0px_#78350F]'
+                                          : 'bg-[#FAF3E0] text-amber-900 border-[#4A2E1B]/35 hover:border-[#4A2E1B]/80'
+                                      }`}
+                                    >
+                                      🧗 自動攻略: {char.dispatchState?.autoAbyss ? '有効 (ON)' : '無効 (OFF)'}
+                                    </button>
+                                  )}
                                 </div>
                                 <h3 className="font-extrabold text-base text-[#4A2E1B] mt-1.5 bg-[#FAF6EE] border-2 border-[#4A2E1B] rounded px-2.5 py-0.5 max-w-fit shadow-[2px_2px_0px_#4A2E1B]">
                                   {char.name}
