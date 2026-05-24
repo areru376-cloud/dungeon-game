@@ -482,8 +482,8 @@ export default function App() {
 
   // Recruit Gacha Action
   const handleRollGacha = (useTicket: boolean): { character: Character; cost: number } | null => {
-    const cost = useTicket ? 1 : 500;
-    if (useTicket && gameState.tickets < 1) return null;
+    const cost = useTicket ? 10 : 500;
+    if (useTicket && gameState.tickets < 10) return null;
     if (!useTicket && gameState.gold < 500) return null;
 
     const newChar = generateCharacter(useTicket);
@@ -491,7 +491,7 @@ export default function App() {
 
     setGameState((prev) => {
       const updatedGold = useTicket ? prev.gold : prev.gold - 500;
-      const updatedTickets = useTicket ? prev.tickets - 1 : prev.tickets;
+      const updatedTickets = useTicket ? prev.tickets - 10 : prev.tickets;
       const updatedChars = [...prev.characters, newChar];
 
       // Formulate visual log entry
@@ -563,6 +563,115 @@ export default function App() {
         ...prev,
         gold: nextGold,
         characters: updatedChars,
+        logs: newLogs,
+      };
+    });
+  };
+
+  // Ticket-based Special Level Up Action
+  const handleLevelUpCharacterWithTickets = (charId: string, ticketCost: number = 10, levelsGranted: number = 10) => {
+    const character = gameState.characters.find((c) => c.id === charId);
+    if (!character || character.status !== 'idle') return;
+    if (gameState.tickets < ticketCost) return;
+
+    setGameState((prev) => {
+      const updatedChars = prev.characters.map((char) => {
+        if (char.id === charId) {
+          return {
+            ...char,
+            level: char.level + levelsGranted,
+          };
+        }
+        return char;
+      });
+
+      const stamp = new Date().toLocaleTimeString();
+      const nextTickets = prev.tickets - ticketCost;
+
+      const newLogs = [
+        {
+          id: `log_lvl_tix_${charId}_${Date.now()}`,
+          timestamp: stamp,
+          text: `🎫 紹介状特別特訓: 「${character.name}」が紹介状特訓課程を修了し、レベルが ${character.level + levelsGranted} に一気に向上しました（+${levelsGranted}Lv、消費紹介状:${ticketCost}枚）！攻撃力・防御力が向上します。`,
+          type: 'success' as const,
+        },
+        ...prev.logs,
+      ];
+
+      return {
+        ...prev,
+        tickets: nextTickets,
+        characters: updatedChars,
+        logs: newLogs,
+      };
+    });
+  };
+
+  // Special Ticket Exchange Office Action
+  const handleExchangeTickets = (exchangeType: 'gold' | 'materials' | 'gear' | 'dragon') => {
+    let cost = 0;
+    switch (exchangeType) {
+      case 'gold': cost = 5; break;
+      case 'materials': cost = 5; break;
+      case 'gear': cost = 10; break;
+      case 'dragon': cost = 15; break;
+    }
+
+    if (gameState.tickets < cost) return;
+
+    setGameState((prev) => {
+      let nextTickets = prev.tickets - cost;
+      let nextGold = prev.gold;
+      let nextIron = prev.ironOre;
+      let nextMagic = prev.magicStone;
+      let nextDragon = prev.dragonScale;
+      let nextInventory = [...prev.inventory];
+      let logText = '';
+
+      const stamp = new Date().toLocaleTimeString();
+
+      if (exchangeType === 'gold') {
+        const addedGold = 100000;
+        nextGold += addedGold;
+        logText = `🪙 予算引換: 予備の紹介状を ${cost}枚 回収し、会社予算 +${addedGold.toLocaleString()}G を金庫に加算しました。`;
+      } else if (exchangeType === 'materials') {
+        const addedIron = 300;
+        const addedMagic = 100;
+        nextIron += addedIron;
+        nextMagic += addedMagic;
+        logText = `🔩 資材引換: 予備の紹介状を ${cost}枚 回収し、職人の特別資材セット（てつこ +${addedIron}個、魔結晶 +${addedMagic}個）を受領しました。`;
+      } else if (exchangeType === 'dragon') {
+        const addedDragon = 15;
+        nextDragon += addedDragon;
+        logText = `🐉 逆鱗引換: 予備の紹介状を ${cost}枚 回収し、奈落極限素材 竜の逆鱗 +${addedDragon}個 を倉庫の一等地へ搬入しました。`;
+      } else if (exchangeType === 'gear') {
+        // Generate an Epic or Legendary equipment
+        const rarityChance = Math.random();
+        const chosenRarity = rarityChance < 0.25 ? 'legendary' : 'epic'; // 25% legendary, 75% epic
+        const newGear = generateEquipment(chosenRarity);
+        nextInventory.push(newGear);
+        const rarityLabel = chosenRarity === 'legendary' ? '✨レジェンダリー' : '🔮エピック';
+        logText = `🎁 武具BOX引換: 予備の紹介状を ${cost}枚 回収し、「${newGear.name}」(${rarityLabel}武具、基本性能:${newGear.baseStat}) を開封・倉庫に配備しました。`;
+      }
+
+      const newLogs = [
+        {
+          id: `log_exchange_${exchangeType}_${Date.now()}`,
+          timestamp: stamp,
+          text: logText,
+          type: 'success' as const,
+        },
+        ...prev.logs,
+      ];
+
+      return {
+        ...prev,
+        tickets: nextTickets,
+        gold: nextGold,
+        ironOre: nextIron,
+        magicStone: nextMagic,
+        dragonScale: nextDragon,
+        inventory: nextInventory,
         logs: newLogs,
       };
     });
@@ -1492,14 +1601,17 @@ export default function App() {
               gold={gameState.gold}
               tickets={gameState.tickets}
               onRollGacha={handleRollGacha}
+              onExchangeTickets={handleExchangeTickets}
             />
             
             <CharacterList
               characters={gameState.characters}
               inventory={gameState.inventory}
               gold={gameState.gold}
+              tickets={gameState.tickets}
               companyWideAtkBuffPct={companyWideAtkBuffPct}
               onLevelUp={handleLevelUpCharacter}
+              onLevelUpWithTickets={handleLevelUpCharacterWithTickets}
               onDismiss={handleDismissCharacter}
               onOpenEquipSelector={(char, type) => {
                 setEqSelectorConfig({ characterId: char.id, type });

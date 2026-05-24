@@ -8,8 +8,10 @@ interface CharacterListProps {
   characters: Character[];
   inventory: Equipment[];
   gold: number;
+  tickets: number;
   companyWideAtkBuffPct: number;
   onLevelUp: (charId: string, levelsToRaise: number) => void;
+  onLevelUpWithTickets: (charId: string, ticketCost: number, levelsGranted: number) => void;
   onDismiss: (charId: string) => void;
   onOpenEquipSelector: (character: Character, type: 'weapon' | 'armor') => void;
 }
@@ -18,8 +20,10 @@ export const CharacterList: React.FC<CharacterListProps> = ({
   characters,
   inventory,
   gold,
+  tickets,
   companyWideAtkBuffPct,
   onLevelUp,
+  onLevelUpWithTickets,
   onDismiss,
   onOpenEquipSelector,
 }) => {
@@ -227,78 +231,103 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                 </div>
 
                 {/* Level Up (Slider) Panel / Status Display */}
-                <div className="mt-4 pt-4 border-t border-[#4A2E1B]/15">
+                <div className="mt-4 pt-4 border-t border-[#4A2E1B]/15 space-y-3">
                   {char.status === 'dispatched' ? (
                     <div className="text-center py-2.5 bg-[#FAF6EE] border border-dashed border-[#4A2E1B]/25 rounded text-[10px] text-[#8C7A65] font-bold">
                       💼 単身でダンジョンへ派遣中のため、現在は訓練を行えません。
                     </div>
-                  ) : !isAffordable ? (
-                    <div className="flex flex-col gap-2">
-                        <div className="text-center py-2 bg-amber-50 rounded border border-dashed border-amber-300 text-[10px] text-amber-800 font-bold leading-normal">
-                          🪙 ゴールドが不足しています（次のレベルアップ訓練に {getLevelUpCost(char.level).toLocaleString()}G 必要）
-                        </div>
-                        <button
-                          disabled
-                          className="w-full text-center py-2 rounded text-xs bg-stone-200 border-b-4 border-stone-300 text-stone-400 cursor-not-allowed font-black flex items-center justify-center gap-1.5"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                          訓練強化 (G不足)
-                        </button>
-                    </div>
                   ) : (
-                    <div className="space-y-3 bg-[#FAF3E0]/60 p-2.5 rounded border border-[#4A2E1B]/20">
-                      <div className="flex justify-between items-center text-[10.5px]">
-                        <span className="font-extrabold text-[#A33B20] flex items-center gap-1">▶ 訓練レベル数をえらぶ</span>
-                        <span className="font-mono bg-[#FAF6EE] border border-[#4A2E1B]/30 px-2 py-0.2 rounded font-black text-[#A33B20]">
-                          +{currentChosenLevels} Lvl
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9.5px] text-[#8C7A65] font-mono">1</span>
-                        <input
-                          type="range"
-                          min="1"
-                          max={maxAffordable}
-                          value={currentChosenLevels}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            setSelectedLevels((prev) => ({ ...prev, [char.id]: val }));
-                          }}
-                          className="flex-1 h-2 bg-[#4A2E1B]/15 rounded-lg appearance-none cursor-pointer accent-[#A33B20]"
-                        />
-                        <span className="text-[9.5px] text-amber-800 font-extrabold font-mono">最大+{maxAffordable}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center bg-[#FAF6EE] border border-dashed border-[#4A2E1B]/30 px-2.5 py-1.5 rounded text-[10.5px]">
-                        <div>
-                          <span className="text-[8px] text-[#8C7A65] block">訓練目標</span>
-                          <span className="font-black text-[#4A2E1B] font-mono">
-                            Lv.{char.level} ➔ <strong className="text-[#A33B20] text-sm font-black">Lv.{char.level + currentChosenLevels}</strong>
-                          </span>
+                    <>
+                      {/* Normal Gold-based Training */}
+                      {!isAffordable ? (
+                        <div className="flex flex-col gap-2">
+                            <div className="text-center py-2 bg-amber-50 rounded border border-dashed border-amber-300 text-[10px] text-amber-800 font-bold leading-normal">
+                              🪙 ゴールドが不足しています（次のレベルアップ訓練に {getLevelUpCost(char.level).toLocaleString()}G 必要）
+                            </div>
+                            <button
+                              disabled
+                              className="w-full text-center py-2 rounded text-xs bg-stone-200 border-b-4 border-stone-300 text-stone-400 cursor-not-allowed font-black flex items-center justify-center gap-1.5"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                              訓練強化 (G不足)
+                            </button>
                         </div>
-                        <div className="text-right">
-                          <span className="text-[8px] text-[#8C7A65] block">消費予算</span>
-                          <span className="font-black text-amber-800 font-mono text-sm leading-none flex items-center gap-0.5 justify-end">
-                            🪙 {totalLevelUpCost} G
-                          </span>
-                        </div>
-                      </div>
+                      ) : (
+                        <div className="space-y-3 bg-[#FAF3E0]/60 p-2.5 rounded border border-[#4A2E1B]/20">
+                          <div className="flex justify-between items-center text-[10.5px]">
+                            <span className="font-extrabold text-[#A33B20] flex items-center gap-1">▶ 訓練レベル数をえらぶ</span>
+                            <span className="font-mono bg-[#FAF6EE] border border-[#4A2E1B]/30 px-2 py-0.2 rounded font-black text-[#A33B20]">
+                              +{currentChosenLevels} Lvl
+                            </span>
+                          </div>
 
-                      <button
-                        type="button"
-                        id={`levelup-btn-${char.id}`}
-                        onClick={() => {
-                          onLevelUp(char.id, currentChosenLevels);
-                          // Set selection level back to 1
-                          setSelectedLevels((prev) => ({ ...prev, [char.id]: 1 }));
-                        }}
-                        className="w-full text-center py-2 px-3 rounded text-xs bg-[#203D54] border-b-4 border-[#132533] text-white hover:bg-[#132533] cursor-pointer font-black flex items-center justify-center gap-1.5 active:translate-y-[2px] active:border-b-0 transition-all shadow-sm"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                        この内容で 訓練強化（+{currentChosenLevels}Lv）
-                      </button>
-                    </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9.5px] text-[#8C7A65] font-mono">1</span>
+                            <input
+                              type="range"
+                              min="1"
+                              max={maxAffordable}
+                              value={currentChosenLevels}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                setSelectedLevels((prev) => ({ ...prev, [char.id]: val }));
+                              }}
+                              className="flex-1 h-2 bg-[#4A2E1B]/15 rounded-lg appearance-none cursor-pointer accent-[#A33B20]"
+                            />
+                            <span className="text-[9.5px] text-amber-800 font-extrabold font-mono">最大+{maxAffordable}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center bg-[#FAF6EE] border border-dashed border-[#4A2E1B]/30 px-2.5 py-1.5 rounded text-[10.5px]">
+                            <div>
+                              <span className="text-[8px] text-[#8C7A65] block">訓練目標</span>
+                              <span className="font-black text-[#4A2E1B] font-mono">
+                                Lv.{char.level} ➔ <strong className="text-[#A33B20] text-sm font-black">Lv.{char.level + currentChosenLevels}</strong>
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[8px] text-[#8C7A65] block">消費予算</span>
+                              <span className="font-black text-amber-800 font-mono text-sm leading-none flex items-center gap-0.5 justify-end">
+                                🪙 {totalLevelUpCost} G
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            id={`levelup-btn-${char.id}`}
+                            onClick={() => {
+                              onLevelUp(char.id, currentChosenLevels);
+                              // Set selection level back to 1
+                              setSelectedLevels((prev) => ({ ...prev, [char.id]: 1 }));
+                            }}
+                            className="w-full text-center py-2 px-3 rounded text-xs bg-[#203D54] border-b-4 border-[#132533] text-white hover:bg-[#132533] cursor-pointer font-black flex items-center justify-center gap-1.5 active:translate-y-[2px] active:border-b-0 transition-all shadow-sm"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                            この内容で 訓練強化（+{currentChosenLevels}Lv）
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Ticket-based special level up */}
+                      <div className="pt-2 border-t border-dashed border-[#4A2E1B]/30 space-y-1">
+                        <button
+                          type="button"
+                          id={`ticket-levelup-btn-${char.id}`}
+                          disabled={tickets < 10}
+                          onClick={() => onLevelUpWithTickets(char.id, 10, 10)}
+                          className={`w-full text-center py-2 px-3 rounded text-xs font-black flex items-center justify-center gap-1.5 transition-all select-none border-b-4 active:translate-y-[2px] active:border-b-0 ${
+                            tickets >= 10
+                              ? 'bg-amber-600 border-amber-800 text-white hover:bg-amber-700 cursor-pointer shadow-sm'
+                              : 'bg-stone-200 border-stone-300 text-stone-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <span>🎫</span> 紹介状10枚で +10 レベル特別特訓（現在: {tickets}枚）
+                        </button>
+                        <p className="text-[9px] text-[#8C7A65] text-center leading-normal">
+                          ※ゴールド不要で一気に10レベル育成できる特別メニューです。
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
 

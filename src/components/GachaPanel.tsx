@@ -8,12 +8,14 @@ interface GachaPanelProps {
   gold: number;
   tickets: number;
   onRollGacha: (useTicket: boolean) => { character: Character; cost: number } | null;
+  onExchangeTickets: (exchangeType: 'gold' | 'materials' | 'gear' | 'dragon') => void;
 }
 
 export const GachaPanel: React.FC<GachaPanelProps> = ({
   gold,
   tickets,
   onRollGacha,
+  onExchangeTickets,
 }) => {
   const [isRolling, setIsRolling] = useState(false);
   const [rolledChar, setRolledChar] = useState<Character | null>(null);
@@ -21,7 +23,7 @@ export const GachaPanel: React.FC<GachaPanelProps> = ({
   const GOLD_COST = 500;
 
   const handleRoll = (useTicket: boolean) => {
-    if (useTicket && tickets < 1) return;
+    if (useTicket && tickets < 10) return;
     if (!useTicket && gold < GOLD_COST) return;
 
     setIsRolling(true);
@@ -101,14 +103,14 @@ export const GachaPanel: React.FC<GachaPanelProps> = ({
           
           <div className="mt-4 pt-3 border-t border-[#4A2E1B]/35 flex items-center justify-between text-xs">
             <span className="font-mono text-indigo-700 font-black">
-              🎫 しょうかいじょう 1枚
+              🎫 しょうかいじょう 10枚
             </span>
             <button
               id="roll-ticket-btn"
               onClick={() => handleRoll(true)}
-              disabled={isRolling || tickets < 1}
+              disabled={isRolling || tickets < 10}
               className={`px-4 py-1.5 text-xs font-black rounded border-2 transition-colors ${
-                tickets >= 1 && !isRolling
+                tickets >= 10 && !isRolling
                   ? 'bg-[#C19A6B] border-[#4A2E1B] text-black cursor-pointer hover:bg-[#B0895B]'
                   : 'bg-[#D3C4B3] border-[#A69580] text-[#8C7A65] cursor-not-allowed'
               }`}
@@ -118,6 +120,136 @@ export const GachaPanel: React.FC<GachaPanelProps> = ({
           </div>
         </div>
 
+      </div>
+
+      {/* Special Ticket Exchange Clerk Counter */}
+      <div className="mt-6 border-2 border-[#4A2E1B] rounded-lg p-4 bg-[#F2EDE2]/90 shadow-sm text-[#4A2E1B]">
+        <h3 className="text-sm font-black text-[#A33B20] border-b border-dashed border-[#4A2E1B]/40 pb-2 mb-3 flex items-center gap-1.5">
+          <span>📜</span> 紹介状特別交換窓口 (SURPLUS TICKET REDEMPTION COUNTER)
+        </h3>
+        <p className="text-[11px] text-[#5C4033] mb-4 leading-normal font-medium">
+          「余った紹介状はこちらで回収しますぞ。」会社で余ってしまった貴重な「なかま紹介状」を、ギルド特製の経営予算や職人工房の鍛冶素材、直引き武具BOXと交換できる専用の窓口です。
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          
+          {/* Option 1: Gold */}
+          <div className="bg-[#FAF6EE] border-2 border-[#4A2E1B] rounded p-3 flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded font-extrabold uppercase">
+                  予算調達
+                </span>
+                <span className="text-[10.5px] font-black text-indigo-700 font-mono">🎫 5枚</span>
+              </div>
+              <h4 className="text-xs font-black mt-1 text-[#4A2E1B]">会社用追加ゴールド資金</h4>
+              <p className="text-[10px] text-[#8C7A65] mt-0.5 leading-normal">
+                ギルドの会社金庫に ゴールド <strong>+10万G (100,000G)</strong> を加算します。
+              </p>
+            </div>
+            <button
+              type="button"
+              id="exchange-btn-gold"
+              onClick={() => onExchangeTickets('gold')}
+              disabled={tickets < 5}
+              className={`w-full mt-3.5 py-1 px-3 text-[10.5px] font-black rounded border-2 transition-all cursor-pointer ${
+                tickets >= 5
+                  ? 'bg-amber-100 border-[#4D3126] text-[#4A2E1B] hover:bg-amber-200'
+                  : 'bg-stone-100 border-stone-300 text-stone-400 cursor-not-allowed'
+              }`}
+            >
+              資金を計上する (+10万G)
+            </button>
+          </div>
+
+          {/* Option 2: Materials Bundle */}
+          <div className="bg-[#FAF6EE] border-2 border-[#4A2E1B] rounded p-3 flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300 px-1.5 py-0.2 rounded font-extrabold uppercase">
+                  鍛冶資材
+                </span>
+                <span className="text-[10.5px] font-black text-indigo-700 font-mono">🎫 5枚</span>
+              </div>
+              <h4 className="text-xs font-black mt-1 text-[#4A2E1B]">職人の特別資材セット</h4>
+              <p className="text-[10px] text-[#8C7A65] mt-0.5 leading-normal">
+                ギルド倉庫に <strong>🔩 てつこ +300個</strong> と <strong>🔮 魔結晶 +100個</strong> を即時搬入します。
+              </p>
+            </div>
+            <button
+              type="button"
+              id="exchange-btn-materials"
+              onClick={() => onExchangeTickets('materials')}
+              disabled={tickets < 5}
+              className={`w-full mt-3.5 py-1 px-3 text-[10.5px] font-black rounded border-2 transition-all cursor-pointer ${
+                tickets >= 5
+                  ? 'bg-amber-100 border-[#4D3126] text-[#4A2E1B] hover:bg-amber-200'
+                  : 'bg-stone-100 border-stone-300 text-stone-400 cursor-not-allowed'
+              }`}
+            >
+              てつこ300・結晶100
+            </button>
+          </div>
+
+          {/* Option 3: Epic or Legendary Box */}
+          <div className="bg-[#FAF6EE] border-2 border-[#4A2E1B] rounded p-3 flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] bg-[#FFF3E0] text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded font-extrabold uppercase">
+                  限定武具BOX
+                </span>
+                <span className="text-[10.5px] font-black text-indigo-700 font-mono">🎫 10枚</span>
+              </div>
+              <h4 className="text-xs font-black mt-1 text-[#4A2E1B]">特選精鋭・武具支給BOX</h4>
+              <p className="text-[10px] text-[#8C7A65] mt-0.5 leading-normal font-medium">
+                鑑定済みの <strong>エピック(EPIC)</strong> または <strong>レジェンダリー(LEGENDARY)</strong> の武具1体をランダムに受領・倉庫に搬入します。
+              </p>
+            </div>
+            <button
+              type="button"
+              id="exchange-btn-gear"
+              onClick={() => onExchangeTickets('gear')}
+              disabled={tickets < 10}
+              className={`w-full mt-3.5 py-1 px-3 text-[10.5px] font-black rounded border-2 transition-all cursor-pointer ${
+                tickets >= 10
+                  ? 'bg-[#C19A6B] border-amber-800 text-black hover:bg-[#B0895B]'
+                  : 'bg-stone-100 border-stone-300 text-stone-400 cursor-not-allowed'
+              }`}
+            >
+              最高級武具BOX (EPIC以上確約)
+            </button>
+          </div>
+
+          {/* Option 4: Dragon Scales Bundle */}
+          <div className="bg-[#FAF6EE] border-2 border-[#4A2E1B] rounded p-3 flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] bg-red-100 text-red-900 border border-red-300 px-1.5 py-0.2 rounded font-extrabold uppercase">
+                  超レア素材
+                </span>
+                <span className="text-[10.5px] font-black text-indigo-700 font-mono">🎫 15枚</span>
+              </div>
+              <h4 className="text-xs font-black mt-1 text-[#4A2E1B]">竜の逆鱗×15個詰め合わせ</h4>
+              <p className="text-[10px] text-[#8C7A65] mt-0.5 leading-normal font-medium">
+                究極武具の製造に必要な、奈落最強の超先端希少素材 <strong>🐉 竜の逆鱗×15個</strong> を緊急配送します。
+              </p>
+            </div>
+            <button
+              type="button"
+              id="exchange-btn-dragon"
+              onClick={() => onExchangeTickets('dragon')}
+              disabled={tickets < 15}
+              className={`w-full mt-3.5 py-1 px-3 text-[10.5px] font-black rounded border-2 transition-all cursor-pointer ${
+                tickets >= 15
+                  ? 'bg-amber-600 border-amber-800 text-white hover:bg-amber-700'
+                  : 'bg-stone-100 border-stone-300 text-stone-400 cursor-not-allowed'
+              }`}
+            >
+              超希少素材 逆鱗15個
+            </button>
+          </div>
+
+        </div>
       </div>
 
       {/* Animation slot / roll display */}
