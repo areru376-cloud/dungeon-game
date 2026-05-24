@@ -1,0 +1,6 @@
+{
+  "name": "極限！無限ダンジョン派遣会社",
+  "description": "ソシャゲ風 放置＆ハクスラ経営シミュレーション。社員をダンジョンに派遣し、ランダム装備を厳選して会社を無限に強くしよう！",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
