@@ -948,7 +948,7 @@ export default function App() {
       // If Infinite Dungeon, check if Abyss floor surpassed limit records AND they successfully cleared the level
       let nextAbyssRecord = prev.deepestAbyssFloor;
       if (selectedDungeonObj.isInfinite && character.dispatchState && results.success) {
-        // Derive floor from recommendedAtk inside dispatchState: floor * 800
+        // Derive floor from recommendedAtk inside dispatchState: floor * 8000 + 4000
         const completedFloor = Math.max(1, Math.round((character.dispatchState.recommendedAtk - 4000) / 8000));
         if (completedFloor >= nextAbyssRecord) {
           nextAbyssRecord = completedFloor + 1; // Unlocks next floor!
@@ -1139,7 +1139,7 @@ export default function App() {
                         const prog = getDispatchProgression(char);
                         const dungeonName = INITIAL_DUNGEONS.find(
                           (d) => d.id === char.dispatchState?.dungeonId
-                        )?.name || `極限の奈落 (${char.dispatchState ? Math.round(char.dispatchState.recommendedAtk / 800) : 1}層)`;
+                        )?.name || `極限の奈落 (${char.dispatchState ? Math.round((char.dispatchState.recommendedAtk - 4000) / 8000) : 1}層)`;
 
                         return (
                           <div
