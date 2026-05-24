@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dungeon, Character, Equipment } from '../types';
 import { INITIAL_DUNGEONS, JOB_INFO } from '../constants';
-import { computeCharacterStats } from '../gameEngine';
+import { computeCharacterStats, getAbyssGoldReward } from '../gameEngine';
 import { Play, ShieldAlert, CheckCircle, Skull, Compass, Clock, Coins, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 
 interface DungeonPanelProps {
@@ -41,7 +41,7 @@ export const DungeonPanel: React.FC<DungeonPanelProps> = ({
     name: `極限の奈落 (${abyssFloor}層)`,
     recommendAtk: 4000 + abyssFloor * 8000,
     durationSec: 10 + Math.round(abyssFloor * 1.5),
-    goldReward: Math.round(400 * Math.pow(1.35, abyssFloor)),
+    goldReward: getAbyssGoldReward(abyssFloor),
     ironReward: 5 + Math.round(abyssFloor * 1.5),
     gemReward: abyssFloor >= 3 ? Math.round(2 + abyssFloor * 0.7) : 0,
     dragonReward: abyssFloor >= 8 ? Math.round(1 + abyssFloor * 0.15) : 0,

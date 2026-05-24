@@ -30,6 +30,21 @@ export const formatJapanesePower = (num: number): string => {
   return result;
 };
 
+// Custom, balanced polynomial + cubic level-up cost calculation to curb extreme levels
+export const getLevelUpCost = (level: number): number => {
+  return Math.floor(
+    120 +
+    level * 100 +
+    Math.pow(level, 1.8) * 4 +
+    Math.pow(level, 3) * 0.0008
+  );
+};
+
+// Custom, balanced exponential + linear gold reward calculation for Abyss floors
+export const getAbyssGoldReward = (floor: number): number => {
+  return Math.round(400 * Math.pow(1.10, floor) + floor * 120);
+};
+
 // Get random item from list
 const sample = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
@@ -453,10 +468,9 @@ export const calculateDispatchRewards = (
   // Calculate base gold reward
   let baseGold = dungeon.goldReward;
   if (dungeon.isInfinite && character.dispatchState) {
-    // If infinite abyss, scales gold aggressively using floor
-    // e.g. base = 500 * (1.3^floor)
+    // If infinite abyss, scales gold smoothly using the balanced formula
     const currentFloor = Math.max(1, Math.round((targetRecPower - 4000) / 8000)); // derived floor representation
-    baseGold = Math.round(400 * Math.pow(1.35, currentFloor));
+    baseGold = getAbyssGoldReward(currentFloor);
   }
 
   // Apply gear gold multiplier

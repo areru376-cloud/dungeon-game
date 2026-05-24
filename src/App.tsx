@@ -10,7 +10,7 @@ import { LootClaimModal } from './components/LootClaimModal';
 import { BattleMonitor } from './components/BattleMonitor';
 import { OnboardingTutorial } from './components/OnboardingTutorial';
 import { INITIAL_GOLD, INITIAL_TICKETS, INITIAL_ACHIEVEMENTS, INITIAL_DUNGEONS, CRAFT_RECIPES } from './constants';
-import { generateCharacter, generateEquipment, computeCharacterStats, calculateDispatchRewards } from './gameEngine';
+import { generateCharacter, generateEquipment, computeCharacterStats, calculateDispatchRewards, getLevelUpCost } from './gameEngine';
 import { Briefcase, FileSpreadsheet, Sparkles, Trophy, Trash2, HelpCircle, ShieldQuestion, ArrowRight, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -529,7 +529,7 @@ export default function App() {
     let totalCost = 0;
     let tempLevel = character.level;
     for (let i = 0; i < levelsToRaise; i++) {
-      totalCost += tempLevel * 160 + 120;
+      totalCost += getLevelUpCost(tempLevel);
       tempLevel += 1;
     }
 

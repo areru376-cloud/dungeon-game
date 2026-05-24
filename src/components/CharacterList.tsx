@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Character, Equipment } from '../types';
-import { computeCharacterStats, formatJapanesePower } from '../gameEngine';
+import { computeCharacterStats, formatJapanesePower, getLevelUpCost } from '../gameEngine';
 import { JOB_INFO } from '../constants';
 import { User, Shield, Sword, Sparkles, LogOut } from 'lucide-react';
 
@@ -52,13 +52,13 @@ export const CharacterList: React.FC<CharacterListProps> = ({
             // Compute current stats taking equipments, passive, jobs into account
             const stats = computeCharacterStats(char, inventory, companyWideAtkBuffPct);
             
-            // Calculate max affordable levels and cost
+            // Calculate max affordable levels and cost using the balanced getLevelUpCost formula
             const getMaxAffordable = (charLvl: number, currentGold: number) => {
               let tempGold = currentGold;
               let tempL = charLvl;
               let count = 0;
               while (true) {
-                const cost = tempL * 160 + 120;
+                const cost = getLevelUpCost(tempL);
                 if (tempGold >= cost) {
                   tempGold -= cost;
                   count += 1;
@@ -66,6 +66,8 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                 } else {
                   break;
                 }
+                // Safety upper bound
+                if (count >= 1000) break;
               }
               return count;
             };
@@ -74,7 +76,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
               let tempL = charLvl;
               let totalCost = 0;
               for (let i = 0; i < lvlCount; i++) {
-                totalCost += tempL * 160 + 120;
+                totalCost += getLevelUpCost(tempL);
                 tempL += 1;
               }
               return totalCost;
@@ -233,7 +235,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
                   ) : !isAffordable ? (
                     <div className="flex flex-col gap-2">
                         <div className="text-center py-2 bg-amber-50 rounded border border-dashed border-amber-300 text-[10px] text-amber-800 font-bold leading-normal">
-                          🪙 ゴールドが不足しています（次のレベルアップ訓練に {char.level * 160 + 120}G 必要）
+                          🪙 ゴールドが不足しています（次のレベルアップ訓練に {getLevelUpCost(char.level).toLocaleString()}G 必要）
                         </div>
                         <button
                           disabled
